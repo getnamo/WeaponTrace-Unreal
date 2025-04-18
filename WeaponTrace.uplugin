@@ -1,17 +1,24 @@
 {
-	"FileVersion": 3,
-	"Version": 1,
-	"VersionName": "0.1.1",
-	"FriendlyName": "WeaponTrace",
-	"Description": "",
-	"Category": "Other",
-	"CreatedBy": "getnamo",
-	"CreatedByURL": "getnamo.com",
-	"DocsURL": "https://github.com/getnamo/WeaponTrace-Unreal",
-	"MarketplaceURL": "",
-	"SupportURL": "https://github.com/getnamo/WeaponTrace-Unreal/issues",
-	"CanContainContent": true,
-	"IsBetaVersion": false,
-	"IsExperimentalVersion": false,
-	"Installed": false
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.1",
+  "FriendlyName": "WeaponTrace",
+  "Description": "",
+  "Category": "Other",
+  "CreatedBy": "getnamo",
+  "CreatedByURL": "getnamo.com",
+  "DocsURL": "https://github.com/getnamo/WeaponTrace-Unreal",
+  "MarketplaceURL": "",
+  "SupportURL": "https://github.com/getnamo/WeaponTrace-Unreal/issues",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "WeaponTrace",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
 }
