@@ -12,9 +12,22 @@ class WEAPONTRACE_API UWeaponTraceComponentInterface : public UInterface
 	GENERATED_BODY()
 };
 
-/**
- * 
- */
+USTRUCT(BlueprintType)
+struct FWeaponHitResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FHitResult HitResult;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FVector Velocity;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FWeaponTraceHitDelegate,
+	const TArray<FWeaponHitResult>&, HitResults,
+	const FWeaponHitResult&, NearestHitResult);
+
 class WEAPONTRACE_API IWeaponTraceComponentInterface
 {
 	GENERATED_BODY()
@@ -30,9 +43,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "WeaponTrace")
 	AActor* GetOwnerActor();
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "WeaponTrace")
-	TArray<FVector> GetTraceSocketLocations() const;
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "WeaponTrace")
 	bool SetSwingActive(bool bInSwingActive);
