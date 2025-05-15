@@ -1,6 +1,4 @@
-﻿// OnceLostGames LLC
-
-
+﻿
 #include "WeaponTraceComponentInterface.h"
 
 

@@ -1,6 +1,4 @@
-﻿// OnceLostGames LLC
-
-#include "WeaponTraceComponent.h"
+﻿#include "WeaponTraceComponent.h"
 
 UWeaponTraceComponent::UWeaponTraceComponent()
 {
