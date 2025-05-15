@@ -15,7 +15,7 @@ public:
 
 	UWeaponTraceComponent();
 
-	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category="WeaponTrace")
+	UPROPERTY(BlueprintAssignable, BlueprintCallable)
 	FWeaponTraceHitDelegate WeaponTraceHitDelegate;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
@@ -25,16 +25,19 @@ public:
 	bool bRegisterOwnerOnBeginPlay = true;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
-	float RequiredSpacing = 10.0f;
-	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
 	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypesToTrace;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
-	TEnumAsByte<EDrawDebugTrace::Type> DrawDebugType0 = EDrawDebugTrace::Persistent;
+	TEnumAsByte<EDrawDebugTrace::Type> DrawDebugTraceType = EDrawDebugTrace::Persistent;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
-	float DrawDebugTime0 = 90.0f;
+	float TraceDebugDuration = 5;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
+	float TraceSpacing = 10.0f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
+	TArray<FVector> PreviousTracePoints;
 
 	/* IWeaponTraceComponentInterface */
 	virtual UWeaponTraceComponent* GetWeaponTraceComponent_Implementation() override;
@@ -43,7 +46,16 @@ public:
 	virtual bool SetSwingActive_Implementation(bool bInSwingActive) override;
 	virtual bool IsSwingActive_Implementation() const override;
 
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	bool IsWeaponValid();
+
 protected:
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
+	USceneComponent* WeaponBaseSceneComponent;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
+	USceneComponent* WeaponTipSceneComponent;
 
 	UPROPERTY(BlueprintReadWrite)
 	TArray<AActor*> ActorsToIgnore;
@@ -51,40 +63,19 @@ protected:
 	UPROPERTY(BlueprintReadWrite)
 	bool bIsSwingActive;
 
-	UPROPERTY(BlueprintReadWrite)
-	TArray<FVector> PrevTracePoints;
-
-	UPROPERTY(BlueprintReadWrite)
-	USceneComponent* WeaponStartSceneComponent;
-
-	UPROPERTY(BlueprintReadWrite)
-	USceneComponent* WeaponEndSceneComponent;
-	
-	UPROPERTY(BlueprintReadWrite)
-	int32 TraceCount;
-
 	virtual void BeginPlay() override;
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintPure)
-	TArray<FVector> GetTraceLocations() const;
-	
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintPure)
-	TArray<FVector> CalculateTracePoints();
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void CalculateTraceCount();
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void Trace();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	bool AreWeaponSocketsValid() const;
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	TArray<FVector> GetTraceLocations();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	bool AreWeaponSceneComponentsValid() const;
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	TArray<FVector> GetWeaponTracePoints();
 
 public:
-
+	
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 };
