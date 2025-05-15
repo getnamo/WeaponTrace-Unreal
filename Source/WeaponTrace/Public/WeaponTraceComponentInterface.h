@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿// OnceLostGames LLC
+
+#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -21,12 +23,10 @@ struct FWeaponHitResult
 	FHitResult HitResult;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	FVector Velocity;
+	FVector Velocity;	
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FWeaponTraceHitDelegate,
-	const TArray<FWeaponHitResult>&, HitResults,
-	const FWeaponHitResult&, NearestHitResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FWeaponTraceHitDelegate, const FWeaponHitResult&, InHitResult);
 
 class WEAPONTRACE_API IWeaponTraceComponentInterface
 {
@@ -43,6 +43,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "WeaponTrace")
 	AActor* GetOwnerActor();
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "WeaponTrace")
+	TArray<FVector> GetTraceSocketLocations() const;
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "WeaponTrace")
 	bool SetSwingActive(bool bInSwingActive);

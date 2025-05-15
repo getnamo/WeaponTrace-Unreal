@@ -1,13 +1,13 @@
-﻿#include "WeaponTraceComponent.h"
+﻿// OnceLostGames LLC
 
-#include "Kismet/KismetSystemLibrary.h"
+#include "WeaponTraceComponent.h"
 
 UWeaponTraceComponent::UWeaponTraceComponent()
 {
-	ObjectTypesToTrace = { ObjectTypeQuery1, ObjectTypeQuery2, ObjectTypeQuery4 };
-	
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
+
+	ObjectTypesToTrace = {ObjectTypeQuery1, ObjectTypeQuery2, ObjectTypeQuery4};
 }
 
 UWeaponTraceComponent* UWeaponTraceComponent::GetWeaponTraceComponent_Implementation()
@@ -24,72 +24,25 @@ void UWeaponTraceComponent::SetOwnerActor_Implementation(AActor* InOwnerActor)
 {
 	OwnerActor = InOwnerActor;
 
-	for (TSet<UActorComponent*>::TConstIterator It = GetOwner()->GetComponents().CreateConstIterator();
-		It;
-		++It)
-	{
-		if (USceneComponent* SceneComponent = Cast<USceneComponent>(*It))
-		{
-			if (SceneComponent->GetName() == "Base")
-			{
-				WeaponStartSceneComponent = SceneComponent;
-			}
-			else if (SceneComponent->GetName() == "Tip")
-			{
-				WeaponEndSceneComponent = SceneComponent;
-			}
-		}
-	}
-
 	if (OwnerActor)
 	{
 		ActorsToIgnore.Add(OwnerActor);
 		ActorsToIgnore.Add(GetOwner());
-
-		CalculateTraceCount();
 	}
 	else
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 50.f, FColor::Red,
-			TEXT("Owner actor is null. Cannot set owner actor."));
 		SetComponentTickEnabled(false);
 	}
-}
-
-TArray<FVector> UWeaponTraceComponent::GetTraceLocations_Implementation() const
-{
-	TArray<FVector> SocketLocations;
-
-	if (AreWeaponSceneComponentsValid())
-	{
-		SocketLocations.Add(WeaponStartSceneComponent->GetComponentLocation());
-		SocketLocations.Add(WeaponEndSceneComponent->GetComponentLocation());
-
-		return SocketLocations;
-	}
-
-	if (UActorComponent* StaticMeshComponent = GetOwner()->GetComponentByClass(UStaticMeshComponent::StaticClass()))
-	{
-		if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(StaticMeshComponent))
-		{
-			if (MeshComponent->DoesSocketExist("WeaponStart") && MeshComponent->DoesSocketExist("WeaponEnd"))
-			{
-				SocketLocations.Add(MeshComponent->GetSocketLocation("WeaponStart"));
-				SocketLocations.Add(MeshComponent->GetSocketLocation("WeaponEnd"));
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Socket 'WeaponStart' or 'WeaponEnd' not found on static mesh component"));
-			}
-		}
-	}
-
-	return SocketLocations;
 }
 
 bool UWeaponTraceComponent::SetSwingActive_Implementation(bool bInSwingActive)
 {
 	bIsSwingActive = bInSwingActive;
+
+	if (bIsSwingActive)
+	{
+		PreviousTracePoints = GetWeaponTracePoints();
+	}
 
 	SetComponentTickEnabled(bInSwingActive);
 
@@ -99,6 +52,11 @@ bool UWeaponTraceComponent::SetSwingActive_Implementation(bool bInSwingActive)
 bool UWeaponTraceComponent::IsSwingActive_Implementation() const
 {
 	return bIsSwingActive;
+}
+
+bool UWeaponTraceComponent::IsWeaponValid_Implementation()
+{
+	return GetTraceLocations().Num() == 2;
 }
 
 void UWeaponTraceComponent::BeginPlay()
@@ -111,138 +69,129 @@ void UWeaponTraceComponent::BeginPlay()
 	}
 }
 
-TArray<FVector> UWeaponTraceComponent::CalculateTracePoints_Implementation()
+void UWeaponTraceComponent::Trace_Implementation()
 {
-	TArray<FVector> TracePoints;
-	
-	TArray<FVector> TraceLocations = GetTraceLocations();
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Trace Called"));
+	TArray<FVector> TracePoints = GetWeaponTracePoints();
 
-	if (TraceLocations.Num() != 2)
+	// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Trace Points Count: ") + FString::FromInt(TracePoints.Num()));
+
+	FWeaponHitResult NearestHitResult;
+	float NearestDistance = FLT_MAX;
+
+	for (int32 i = 0; i < TracePoints.Num() - 1; ++i)
 	{
-		return {};
+		FVector Start = PreviousTracePoints[i];
+		FVector End = TracePoints[i];
+
+		FHitResult HitResult;
+
+		bool bIsHit = UKismetSystemLibrary::LineTraceSingleForObjects(
+			this,
+			Start,
+			End,
+			ObjectTypesToTrace,
+			false,
+			ActorsToIgnore,
+			DrawDebugTraceType,
+			HitResult,
+			true,
+			FLinearColor::Red,
+			FLinearColor::Green,
+			TraceDebugDuration);
+
+		if (bIsHit)
+		{
+			if (HitResult.Distance < NearestDistance)
+			{
+				NearestDistance = HitResult.Distance;
+				NearestHitResult.HitResult = HitResult;
+				NearestHitResult.Velocity = (End - Start) / GetWorld()->DeltaTimeSeconds;
+			}
+		}
 	}
 
-	FVector StartLocation = TraceLocations[0];
-	FVector EndLocation = TraceLocations[1];
-	
-	FVector Direction = (EndLocation - StartLocation).GetSafeNormal();
-
-	for (int32 i = 0; i < TraceCount - 1; ++i)
-	{		
-		FVector Point = StartLocation + (Direction * RequiredSpacing * i);
-		TracePoints.Add(Point);
+	if (NearestHitResult.HitResult.GetActor())
+	{
+		SetComponentTickEnabled(false);
+		
+		if (WeaponTraceHitDelegate.IsBound())
+		{
+			WeaponTraceHitDelegate.Broadcast(NearestHitResult);
+		}
 	}
 
-	return TracePoints;
+	PreviousTracePoints = TracePoints;
 }
 
-void UWeaponTraceComponent::CalculateTraceCount_Implementation()
+TArray<FVector> UWeaponTraceComponent::GetTraceLocations_Implementation()
+{
+	TArray<FVector> TraceLocations;
+
+	if (WeaponBaseSceneComponent && WeaponTipSceneComponent)
+	{
+		TraceLocations.Add(WeaponBaseSceneComponent->GetComponentLocation());
+		TraceLocations.Add(WeaponTipSceneComponent->GetComponentLocation());
+
+		return TraceLocations;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WeaponBaseSceneComponent or WeaponTipSceneComponent is null"));
+	}
+
+	if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(
+		GetOwner()->GetComponentByClass(UStaticMeshComponent::StaticClass())))
+	{
+		if (MeshComponent)
+		{
+			TraceLocations.Add(MeshComponent->GetSocketLocation("WeaponStart"));
+			TraceLocations.Add(MeshComponent->GetSocketLocation("WeaponEnd"));
+
+			return TraceLocations;
+		}
+	}
+
+	return {};
+}
+
+TArray<FVector> UWeaponTraceComponent::GetWeaponTracePoints_Implementation()
 {
 	TArray<FVector> TraceLocations = GetTraceLocations();
 
 	if (TraceLocations.Num() == 2)
 	{
-		FVector StartLocation = TraceLocations[0];
-		FVector EndLocation = TraceLocations[1];
+		TArray<FVector> TracePoints;
 
-		float Distance = FVector::Dist(StartLocation, EndLocation);
+		FVector Start = TraceLocations[0];
+		FVector End = TraceLocations[1];
 
-		TraceCount = FMath::CeilToInt(Distance / RequiredSpacing);
-	}
-	else
-	{
-		TraceCount = 0;
-	}
-}
+		FVector Direction = (End - Start).GetSafeNormal();
+		float Distance = FVector::Distance(Start, End);
+		int32 NumPoints = FMath::CeilToInt(Distance / TraceSpacing);
 
-void UWeaponTraceComponent::Trace_Implementation()
-{
-	TArray<FVector> TracePoints = CalculateTracePoints();
-
-	TArray<FWeaponHitResult> HitResults;
-	FWeaponHitResult NearestHitResult;
-	float NearestHitDistance = FLT_MAX;
-
-	bool bHitAnything = false;
-
-	for (int i = 0; i < TracePoints.Num(); i++)
-	{
-		FHitResult HitResult;
-
-		if (PrevTracePoints.IsEmpty())
+		for (int32 i = 0; i <= NumPoints; ++i)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-			                                 TEXT("PrevTracePoints is empty"));
-			return;
+			FVector TracePoint = Start + Direction * (i * TraceSpacing);
+			TracePoints.Add(TracePoint);
 		}
 
-		FVector TraceStart = PrevTracePoints[i];
-		FVector TraceEnd = TracePoints[i];
-
-		bool bHit = UKismetSystemLibrary::LineTraceSingleForObjects(
-			GetWorld(),
-			TraceStart,
-			TraceEnd,
-			ObjectTypesToTrace,
-			false,
-			ActorsToIgnore,
-			DrawDebugType0,
-			HitResult,
-			true,
-			FLinearColor::Red,
-			FLinearColor::Green,
-			DrawDebugTime0
-		);
-
-		GEngine->AddOnScreenDebugMessage(-1, 50.f, FColor::Red,
-		                                 TEXT("Traced"));
-
-		if (bHit)
-		{
-			bHitAnything = true;
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
-			                                 FString::Printf(TEXT("Hit: %s"), *HitResult.GetActor()->GetName()));
-
-			FVector Velocity = (HitResult.TraceEnd - HitResult.TraceStart * GetWorld()->DeltaTimeSeconds) * 100.0f;
-
-			FWeaponHitResult WeaponHitResult(HitResult, Velocity);
-
-			HitResults.Add(WeaponHitResult);
-
-			if (HitResult.Distance < NearestHitDistance)
-			{
-				NearestHitDistance = HitResult.Distance;
-				NearestHitResult = WeaponHitResult;
-			}
-		}
+		return TracePoints;
 	}
 
-	if (bHitAnything)
-	{
-		if (WeaponTraceHitDelegate.IsBound())
-		{
-			WeaponTraceHitDelegate.Broadcast(HitResults, NearestHitResult);
-		}
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
-		                                 TEXT("No hit detected"));
-	}
-}
-
-bool UWeaponTraceComponent::AreWeaponSocketsValid() const
-{
-	return GetTraceLocations().Num() == 2;
-}
-
-bool UWeaponTraceComponent::AreWeaponSceneComponentsValid() const
-{
-	return WeaponStartSceneComponent && WeaponEndSceneComponent;
+	return {};
 }
 
 void UWeaponTraceComponent::TickComponent(float DeltaTime, ELevelTick TickType,
                                           FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (!bIsSwingActive)
+	{
+		SetComponentTickEnabled(false);
+		return;
+	}
+
+	Trace();
 }
