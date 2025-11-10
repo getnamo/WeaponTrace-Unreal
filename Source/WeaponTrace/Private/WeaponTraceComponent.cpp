@@ -37,7 +37,7 @@ bool UWeaponTraceComponent::SetSwingActive_Implementation(bool bInSwingActive)
 {
 	bIsSwingActive = bInSwingActive;
 
-	if (bIsSwingActive)
+	if (bIsSwingActive && bNativeTraceEnabled)
 	{
 		PreviousTracePoints = GetWeaponTracePoints();
 	}
@@ -50,6 +50,16 @@ bool UWeaponTraceComponent::SetSwingActive_Implementation(bool bInSwingActive)
 bool UWeaponTraceComponent::IsSwingActive_Implementation() const
 {
 	return bIsSwingActive;
+}
+
+void UWeaponTraceComponent::BeginSwing()
+{
+	SetSwingActive_Implementation(true);
+}
+
+void UWeaponTraceComponent::EndSwing()
+{
+	SetSwingActive_Implementation(false);
 }
 
 bool UWeaponTraceComponent::IsWeaponValid_Implementation()
@@ -191,5 +201,8 @@ void UWeaponTraceComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 		return;
 	}
 
-	Trace();
+	if (bNativeTraceEnabled)
+	{
+		Trace();
+	}
 }

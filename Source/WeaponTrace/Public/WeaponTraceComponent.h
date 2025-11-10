@@ -32,6 +32,10 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
 	float TraceDebugDuration = 5;
+
+	//temp disable for now
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "WeaponTrace")
+	float bNativeTraceEnabled = false;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="WeaponTrace")
 	float TraceSpacing = 10.0f;
@@ -48,6 +52,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	bool IsWeaponValid();
+
+
+	UFUNCTION(BlueprintCallable)
+	void BeginSwing();
+
+	UFUNCTION(BlueprintCallable)
+	void EndSwing();
 
 protected:
 
